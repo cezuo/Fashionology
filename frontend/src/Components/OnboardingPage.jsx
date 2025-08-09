@@ -1,68 +1,70 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { useNavigate } from "react-router-dom"
-import { useTheme } from "./ThemeProvider"
-import useChatGPTQuestions from "../hooks/useChatGPTQuestions"
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useTheme } from "./ThemeProvider";
+import useChatGPTQuestions from "../hooks/useChatGPTQuestions";
 
 const Onboarding = () => {
-  const { question, refreshQuestion} = useChatGPTQuestions()
-  const [answer, setAnswer] = useState("")
-  const [step, setStep] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [answers, setAnswers] = useState([])
-  const { theme, setTheme } = useTheme()
+  const { questions, refreshQuestions, error } = useChatGPTQuestions(); // <- array of 3
+  const [answer, setAnswer] = useState("");
+  const [step, setStep] = useState(1); // 1..3
+  const [isLoading, setIsLoading] = useState(false);
+  const [answers, setAnswers] = useState([]); // [{step, question, answer}]
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
-  const navigate = useNavigate()
-
-  // Load new question on first load and on step change
+  // Fetch questions once on mount
   useEffect(() => {
-    refreshQuestion()
-  }, [step])
+    refreshQuestions?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loading =
+    !questions ||
+    questions.length < 3 ||
+    questions[0] === "Loading your style questions...";
+
+  const currentQuestion = loading ? "Loading your personalized question..." : questions[step - 1];
 
   const handleNext = async () => {
-    if (!answer.trim()) return
+    if (!answer.trim() || loading) return;
+    setIsLoading(true);
 
-    setIsLoading(true)
+    const newAnswers = [
+      ...answers,
+      { step, question: currentQuestion, answer: answer.trim() },
+    ];
+    setAnswers(newAnswers);
+    console.log(`Step ${step} Answer:`, answer.trim());
 
-    // Store the answer
-    const newAnswers = [...answers, { step, question, answer }]
-    setAnswers(newAnswers)
+    await new Promise((r) => setTimeout(r, 400));
 
-    console.log(`Step ${step} Answer:`, answer)
-
-    // Simulate processing time for better UX
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    setAnswer("") // clear input
-    setIsLoading(false)
+    setAnswer("");
+    setIsLoading(false);
 
     if (step < 3) {
-      setStep(step + 1) // move to next step
+      setStep(step + 1);
     } else {
-      console.log("Onboarding complete!", newAnswers)
-      // Redirect to explore or home page
-      navigate("/explore")
+      console.log("Onboarding complete!", newAnswers);
+      navigate("/explore");
     }
-  }
+  };
 
   const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1)
-      // Restore previous answer if available
-      const previousAnswer = answers.find((a) => a.step === step - 1)
-      if (previousAnswer) {
-        setAnswer(previousAnswer.answer)
-      }
-    }
-  }
+    if (step === 1) return;
+    const prevStep = step - 1;
+    setStep(prevStep);
 
-  const handleSkip = () => {
-    navigate("/explore")
-  }
+    // restore previous answer (if any)
+    const prev = answers.find((a) => a.step === prevStep);
+    setAnswer(prev?.answer || "");
+  };
 
-  const progressPercentage = (step / 3) * 100
+  const handleSkip = () => navigate("/explore");
+
+  const progressPercentage = (step / 3) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 relative overflow-hidden">
@@ -83,18 +85,7 @@ const Onboarding = () => {
         aria-label="Toggle theme"
       >
         {theme === "dark" ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-yellow-500"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -106,18 +97,7 @@ const Onboarding = () => {
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-slate-600"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
         )}
@@ -148,7 +128,7 @@ const Onboarding = () => {
           </div>
         </div>
 
-        {/* Logo with Animation */}
+        {/* Logo */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -160,25 +140,8 @@ const Onboarding = () => {
             className="absolute inset-0 rounded-full"
             initial={{ boxShadow: "0 0 0 0 rgba(0,0,0,0)" }}
             animate={{ boxShadow: "0 0 30px 15px rgba(0,0,0,0.05)" }}
-            transition={{
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: "reverse",
-            }}
+            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, repeatType: "reverse" }}
           />
-        </motion.div>
-
-        {/* Title Section */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-zinc-100 dark:to-zinc-400">
-            Let's Get Started!
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-lg">Tell us about your style preferences</p>
         </motion.div>
 
         {/* Question Card */}
@@ -201,8 +164,8 @@ const Onboarding = () => {
                       i === step
                         ? "bg-black dark:bg-white scale-125"
                         : i < step
-                          ? "bg-green-500"
-                          : "bg-zinc-300 dark:bg-zinc-600"
+                        ? "bg-green-500"
+                        : "bg-zinc-300 dark:bg-zinc-600"
                     }`}
                   />
                 ))}
@@ -217,11 +180,11 @@ const Onboarding = () => {
               className="text-center mb-6"
             >
               <h2 className="text-xl font-semibold mb-4 text-zinc-800 dark:text-zinc-200">
-                {question || "Loading your personalized question..."}
+                {currentQuestion}
               </h2>
 
-              {/* Suggested Style Categories (Visual Enhancement) */}
-              {step === 1 && (
+              {/* Optional quick-pick buttons on step 1 */}
+              {step === 1 && !loading && (
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {["Casual", "Formal", "Trendy", "Classic"].map((style) => (
                     <button
@@ -240,7 +203,7 @@ const Onboarding = () => {
               )}
             </motion.div>
 
-            {/* Input Field */}
+            {/* Input */}
             <div className="space-y-4">
               <div className="relative">
                 <input
@@ -249,7 +212,7 @@ const Onboarding = () => {
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all duration-200 text-zinc-900 dark:text-zinc-100"
-                  disabled={isLoading}
+                  disabled={isLoading || loading}
                 />
                 {answer && (
                   <motion.button
@@ -266,12 +229,12 @@ const Onboarding = () => {
                 )}
               </div>
 
-              {/* Action Buttons */}
+              {/* Actions */}
               <div className="flex space-x-3">
                 {step > 1 && (
                   <button
                     onClick={handleBack}
-                    disabled={isLoading}
+                    disabled={isLoading || loading}
                     className="flex-1 py-3 px-4 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Back
@@ -280,30 +243,14 @@ const Onboarding = () => {
 
                 <button
                   onClick={handleNext}
-                  disabled={!answer.trim() || isLoading}
+                  disabled={!answer.trim() || isLoading || loading}
                   className="flex-1 py-3 px-4 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium"
                 >
                   {isLoading ? (
                     <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                       Processing...
                     </>
@@ -323,21 +270,29 @@ const Onboarding = () => {
             >
               Your answers help us personalize your fashion experience
             </motion.p>
+
+            {error && (
+              <p className="mt-3 text-xs text-red-500 text-center">
+                {error} <button className="underline" onClick={refreshQuestions}>Retry</button>
+              </p>
+            )}
           </motion.div>
         </AnimatePresence>
 
-        {/* Bottom Navigation Hint */}
+        {/* Bottom hint */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
           className="mt-8 text-center"
         >
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">Press Enter to continue or use the buttons above</p>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">
+            Press Enter to continue or use the buttons above
+          </p>
         </motion.div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Onboarding
+export default Onboarding;

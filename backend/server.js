@@ -1,40 +1,48 @@
-require("dotenv").config();
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
+// backend/server.js
+import dotenv from "dotenv";
+dotenv.config();
 
-const authRoutes = require('./routes/auth');
-const preferencesRoutes = require('./routes/preferences');
-const generateImageRoute = require('./routes/generateImage');
+import express from "express";
+import cors from "cors";
+import mongoose from "mongoose";
+
+// Routes
+import authRoutes from "./routes/auth.js";
+import preferencesRoutes from "./routes/preferences.js";
+import pexelsRouter from "./routes/pexels.js"; // ✅ renamed from outfits.js
+import moreLikeThis from "./routes/pexels-more-like-this.js";
 
 const app = express();
 
-app.use(cors({
-  origin: 'http://localhost:5173', // Vite dev server
-  credentials: true
-}));
+// Middleware
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Vite dev server
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: "2mb" })); // replaces body-parser
 
-app.use(bodyParser.json());
-
-app.get('/test', (req, res) => {
+// Health checks
+app.get("/test", (req, res) => {
   res.json({ message: "✅ Server is working!", timestamp: new Date() });
 });
-
-app.get('/api/test', (req, res) => {
+app.get("/api/test", (req, res) => {
   res.json({ message: "✅ API route is working!", timestamp: new Date() });
 });
 
-// Routes
-app.use('/api', authRoutes);
-app.use('/api/preferences', preferencesRoutes);
-app.use('/api', generateImageRoute);
+// Mount your routes
+app.use("/api", authRoutes);
+app.use("/api/preferences", preferencesRoutes);
+app.use("/api", pexelsRouter); // ✅ exposes POST /api/generate-outfits
+app.use("/api", moreLikeThis);
 
-// ✅ Connect to MongoDB Atlas using .env variable
-mongoose.connect(process.env.MONGO_URI, {
-  dbName: 'fashionapp',
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('Mongo error:', err));
+// MongoDB
+mongoose
+  .connect(process.env.MONGO_URI, { dbName: "fashionapp" })
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.error("Mongo error:", err));
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

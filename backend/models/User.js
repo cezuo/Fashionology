@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 // Define the schema for the User model
 const userSchema = new mongoose.Schema({
@@ -8,9 +8,10 @@ const userSchema = new mongoose.Schema({
   // New field to store onboarding answers
   onboardingAnswer: {
     type: String,
-    default: '',
+    default: "",
   },
 });
 
 // Create and export the User model
-module.exports = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
+export default User;

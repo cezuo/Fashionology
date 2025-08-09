@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "./ThemeProvider";
-import { auth, provider, signInWithPopup } from "../firebase"; // Firebase setup
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { auth, provider } from "../firebase/firebase.js";
+// adjust path if needed
+import { useNavigate } from "react-router-dom";
+import {
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 
 export function WelcomePageCard() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -37,38 +43,26 @@ export function WelcomePageCard() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        // Sign Up validation
-        if (password !== confirmPassword) {
-          setError("Passwords do not match.");
-          setIsLoading(false);
-          return;
-        }
-
-        if (password.length < 6) {
-          setError("Password must be at least 6 characters.");
-          setIsLoading(false);
-          return;
-        }
-
-        // Firebase Sign Up
-        const result = await auth.createUserWithEmailAndPassword(email, password);
-        console.log(result.user);
-        console.log("Navigating to onboarding");
-        navigate("/onboarding"); // Redirect to onboarding after successful sign-up
-      } else {
-        // Email Login
-        const result = await auth.signInWithEmailAndPassword(email, password);
-        console.log(result.user);
-        console.log("Navigating to onboarding");
-        navigate("/onboarding"); // Redirect to onboarding after successful sign-in
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
       }
-    } catch (err) {
-      setError(err.message || "Authentication failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
+      await createUserWithEmailAndPassword(auth, email, password);
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
     }
-  };
+    navigate("/onboarding");
+  } catch (err) {
+    setError(err.message || "Authentication failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <motion.div
@@ -224,6 +218,26 @@ export function WelcomePageCard() {
             </button>
           </div>
         </div>
+
+        {/* Confirm Password field for Sign Up */}
+        {isSignUp && (
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              className="w-full h-11 px-3 py-2 pr-10 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-zinc-500 focus:border-black dark:focus:border-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        )
+        }
 
         {/* Sign In / Sign Up button */}
         <button
